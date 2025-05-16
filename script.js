@@ -1,100 +1,254 @@
-// Variabel untuk menyimpan matriks
-let matrixA = [];
-let matrixB = [];
-let matrixResult = [];
+// Variabel global untuk melacak operasi saat ini
+let currentOperation = 'add';
 
-// Elemen DOM
+// Inisialisasi saat dokumen siap
 document.addEventListener('DOMContentLoaded', function() {
-    // Inisialisasi event listeners
-    document.getElementById('create-matrices').addEventListener('click', createMatrices);
-    document.getElementById('randomize-A').addEventListener('click', () => randomizeMatrix('A'));
-    document.getElementById('randomize-B').addEventListener('click', () => randomizeMatrix('B'));
-    document.getElementById('clear-A').addEventListener('click', () => clearMatrix('A'));
-    document.getElementById('clear-B').addEventListener('click', () => clearMatrix('B'));
+    // Setup UI awal
+    createMatrixInputs('A', 3, 3);
+    createMatrixInputs('B', 3, 3);
+    setupEventListeners();
     
-    // Tambahkan event listener untuk semua operasi
-    document.getElementById('add').addEventListener('click', addMatrices);
-    document.getElementById('subtract').addEventListener('click', subtractMatrices);
-    document.getElementById('multiply').addEventListener('click', multiplyMatrices);
-    document.getElementById('transpose-A').addEventListener('click', () => transposeMatrix('A'));
-    document.getElementById('transpose-B').addEventListener('click', () => transposeMatrix('B'));
-    document.getElementById('determinant-A').addEventListener('click', () => calculateDeterminant('A'));
-    document.getElementById('determinant-B').addEventListener('click', () => calculateDeterminant('B'));
-    document.getElementById('inverse-A').addEventListener('click', () => calculateInverse('A'));
-    document.getElementById('inverse-B').addEventListener('click', () => calculateInverse('B'));
-    document.getElementById('scalar-multiply-A').addEventListener('click', () => scalarMultiply('A'));
-    document.getElementById('scalar-multiply-B').addEventListener('click', () => scalarMultiply('B'));
-    
-    // Buat matriks awal dengan ukuran default
-    createMatrices();
+    // Set operasi default
+    updateUIForOperation('add');
 });
 
-// Fungsi untuk membuat matriks
-function createMatrices() {
-    const rowsA = parseInt(document.getElementById('matrixA-rows').value);
-    const colsA = parseInt(document.getElementById('matrixA-cols').value);
-    const rowsB = parseInt(document.getElementById('matrixB-rows').value);
-    const colsB = parseInt(document.getElementById('matrixB-cols').value);
-    
-    // Validasi input
-    if (rowsA < 1 || colsA < 1 || rowsB < 1 || colsB < 1 || 
-        rowsA > 10 || colsA > 10 || rowsB > 10 || colsB > 10) {
-        alert('Dimensi matriks harus antara 1 dan 10');
-        return;
-    }
-    
-    // Generate matriks A
-    createMatrixTable('A', rowsA, colsA);
-    
-    // Generate matriks B
-    createMatrixTable('B', rowsB, colsB);
-    
-    // Sembunyikan hasil sebelumnya
-    document.getElementById('result-container').style.display = 'none';
-    document.getElementById('steps-container').style.display = 'none';
-    
-    // Update validasi tombol
-    updateOperationButtonsState();
-}
+// FUNGSI SETUP UI
 
-// Fungsi untuk membuat tabel matriks
-function createMatrixTable(matrixId, rows, cols) {
+// Membuat input matriks berdasarkan dimensi
+function createMatrixInputs(matrixId, rows, cols) {
     const matrixContainer = document.getElementById(`matrix${matrixId}`);
     matrixContainer.innerHTML = '';
     
-    const table = document.createElement('table');
-    table.className = 'matrix-table';
-    
     for (let i = 0; i < rows; i++) {
-        const tr = document.createElement('tr');
+        const rowDiv = document.createElement('div');
+        rowDiv.className = 'matrix-row';
         
         for (let j = 0; j < cols; j++) {
-            const td = document.createElement('td');
+            const cellDiv = document.createElement('div');
+            cellDiv.className = 'matrix-cell';
+            
             const input = document.createElement('input');
             input.type = 'number';
-            input.id = `matrix${matrixId}-${i}-${j}`;
             input.value = '0';
-            input.addEventListener('input', updateOperationButtonsState);
+            input.dataset.row = i;
+            input.dataset.col = j;
+            input.step = '1'; // Hanya memungkinkan bilangan bulat
             
-            td.appendChild(input);
-            tr.appendChild(td);
+            cellDiv.appendChild(input);
+            rowDiv.appendChild(cellDiv);
         }
         
-        table.appendChild(tr);
+        matrixContainer.appendChild(rowDiv);
     }
-    
-    matrixContainer.appendChild(table);
 }
 
-// Fungsi untuk mendapatkan nilai matriks dari input
-function getMatrixValues(matrixId, rows, cols) {
+// Setup semua event listener
+function setupEventListeners() {
+    // Event listener untuk tombol operasi
+    document.getElementById('addBtn').addEventListener('click', () => updateUIForOperation('add'));
+    document.getElementById('subtractBtn').addEventListener('click', () => updateUIForOperation('subtract'));
+    document.getElementById('multiplyBtn').addEventListener('click', () => updateUIForOperation('multiply'));
+    document.getElementById('transposeBtn').addEventListener('click', () => updateUIForOperation('transpose'));
+    document.getElementById('determinantBtn').addEventListener('click', () => updateUIForOperation('determinant'));
+    document.getElementById('inverseBtn').addEventListener('click', () => updateUIForOperation('inverse'));
+    
+    // Event listener untuk tombol tema
+    document.getElementById('lightTheme').addEventListener('click', () => setTheme('light'));
+    document.getElementById('darkTheme').addEventListener('click', () => setTheme('dark'));
+    
+    // Event listener untuk tombol dimensi matriks
+    setupDimensionButtons();
+    
+    // Event listener untuk tombol acak dan kosongkan
+    document.getElementById('randomMatrixA').addEventListener('click', () => randomizeMatrix('A'));
+    document.getElementById('randomMatrixB').addEventListener('click', () => randomizeMatrix('B'));
+    document.getElementById('clearMatrixA').addEventListener('click', () => clearMatrix('A'));
+    document.getElementById('clearMatrixB').addEventListener('click', () => clearMatrix('B'));
+    
+    // Event listener untuk tombol hitung
+    document.getElementById('calculateBtn').addEventListener('click', performCalculation);
+}
+
+// Setup tombol pengubah dimensi
+function setupDimensionButtons() {
+    const decreaseBtns = document.querySelectorAll('.decrease-btn');
+    const increaseBtns = document.querySelectorAll('.increase-btn');
+    
+    decreaseBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const matrix = this.dataset.matrix;
+            const dimension = this.dataset.dimension;
+            changeDimension(matrix, dimension, -1);
+        });
+    });
+    
+    increaseBtns.forEach(btn => {
+        btn.addEventListener('click', function() {
+            const matrix = this.dataset.matrix;
+            const dimension = this.dataset.dimension;
+            changeDimension(matrix, dimension, 1);
+        });
+    });
+}
+
+// Mengubah dimensi matriks
+function changeDimension(matrix, dimension, change) {
+    const dimensionSpan = document.getElementById(`matrix${matrix}${dimension === 'rows' ? 'Rows' : 'Cols'}`);
+    let value = parseInt(dimensionSpan.textContent);
+    
+    // Batasi nilai minimal 1 dan maksimal 10
+    value = Math.max(1, Math.min(10, value + change));
+    dimensionSpan.textContent = value;
+    
+    // Update matriks
+    const rows = parseInt(document.getElementById(`matrix${matrix}Rows`).textContent);
+    const cols = parseInt(document.getElementById(`matrix${matrix}Cols`).textContent);
+    createMatrixInputs(matrix, rows, cols);
+    
+    // Update UI untuk operasi yang memerlukan dimensi tertentu
+    validateDimensionsForOperation();
+}
+
+// Acak nilai matriks
+function randomizeMatrix(matrixId) {
+    const inputs = document.querySelectorAll(`#matrix${matrixId} input`);
+    inputs.forEach(input => {
+        // Menghasilkan angka acak antara -10 dan 10, hanya bilangan bulat
+        input.value = Math.floor(Math.random() * 21 - 10);
+    });
+}
+
+// Kosongkan matriks (set nilai ke 0)
+function clearMatrix(matrixId) {
+    const inputs = document.querySelectorAll(`#matrix${matrixId} input`);
+    inputs.forEach(input => {
+        input.value = '0';
+    });
+}
+
+// FUNGSI PENGATURAN UI
+
+// Update UI berdasarkan operasi yang dipilih
+function updateUIForOperation(operation) {
+    // Simpan operasi saat ini
+    currentOperation = operation;
+    
+    // Reset semua tombol operasi
+    document.querySelectorAll('.operation-list button').forEach(btn => {
+        btn.classList.remove('active');
+    });
+    
+    // Aktifkan tombol operasi yang dipilih
+    document.getElementById(`${operation}Btn`).classList.add('active');
+    
+    // Update judul operasi
+    const titles = {
+        'add': 'Penjumlahan Matriks',
+        'subtract': 'Pengurangan Matriks',
+        'multiply': 'Perkalian Matriks',
+        'transpose': 'Transpose Matriks',
+        'determinant': 'Determinan Matriks',
+        'inverse': 'Invers Matriks'
+    };
+    document.getElementById('currentOperation').textContent = titles[operation];
+    
+    // Tampilkan/sembunyikan matriks B sesuai kebutuhan operasi
+    const matrixBContainer = document.getElementById('matrixBContainer');
+    if (['transpose', 'determinant', 'inverse'].includes(operation)) {
+        matrixBContainer.style.display = 'none';
+    } else {
+        matrixBContainer.style.display = 'block';
+    }
+    
+    // Validasi dimensi untuk operasi tertentu
+    validateDimensionsForOperation();
+}
+
+// Validasi dimensi matriks untuk operasi saat ini
+function validateDimensionsForOperation() {
+    const rowsA = parseInt(document.getElementById('matrixARows').textContent);
+    const colsA = parseInt(document.getElementById('matrixACols').textContent);
+    const rowsB = parseInt(document.getElementById('matrixBRows').textContent);
+    const colsB = parseInt(document.getElementById('matrixBCols').textContent);
+    
+    switch (currentOperation) {
+        case 'add':
+        case 'subtract':
+            // Untuk penjumlahan dan pengurangan, dimensi matriks harus sama
+            if (rowsA !== rowsB || colsA !== colsB) {
+                showNotification('Untuk penjumlahan/pengurangan, dimensi kedua matriks harus sama!');
+                // Otomatis sesuaikan dimensi matriks B sama dengan A
+                document.getElementById('matrixBRows').textContent = rowsA;
+                document.getElementById('matrixBCols').textContent = colsA;
+                createMatrixInputs('B', rowsA, colsA);
+            }
+            break;
+            
+        case 'multiply':
+            // Untuk perkalian, jumlah kolom A harus sama dengan jumlah baris B
+            if (colsA !== rowsB) {
+                showNotification('Untuk perkalian, jumlah kolom matriks A harus sama dengan jumlah baris matriks B!');
+                // Otomatis sesuaikan jumlah baris matriks B sama dengan jumlah kolom matriks A
+                document.getElementById('matrixBRows').textContent = colsA;
+                createMatrixInputs('B', colsA, colsB);
+            }
+            break;
+            
+        case 'determinant':
+        case 'inverse':
+            // Untuk determinan dan invers, matriks harus persegi
+            if (rowsA !== colsA) {
+                showNotification('Untuk determinan/invers, matriks harus persegi!');
+                // Otomatis sesuaikan dimensi matriks A menjadi persegi
+                const min = Math.min(rowsA, colsA);
+                document.getElementById('matrixARows').textContent = min;
+                document.getElementById('matrixACols').textContent = min;
+                createMatrixInputs('A', min, min);
+            }
+            break;
+    }
+}
+
+// Ganti tema
+function setTheme(theme) {
+    if (theme === 'dark') {
+        document.body.classList.add('dark-theme');
+        document.getElementById('darkTheme').classList.add('active');
+        document.getElementById('lightTheme').classList.remove('active');
+    } else {
+        document.body.classList.remove('dark-theme');
+        document.getElementById('lightTheme').classList.add('active');
+        document.getElementById('darkTheme').classList.remove('active');
+    }
+}
+
+// Tampilkan notifikasi
+function showNotification(message) {
+    const notification = document.getElementById('notification');
+    const notificationText = document.getElementById('notificationText');
+    
+    notificationText.textContent = message;
+    notification.classList.add('show');
+    
+    setTimeout(() => {
+        notification.classList.remove('show');
+    }, 3000);
+}
+
+// FUNGSI OPERASI MATRIKS
+
+// Baca nilai matriks dari input
+function getMatrixValues(matrixId) {
+    const rows = parseInt(document.getElementById(`matrix${matrixId}Rows`).textContent);
+    const cols = parseInt(document.getElementById(`matrix${matrixId}Cols`).textContent);
     const matrix = [];
     
     for (let i = 0; i < rows; i++) {
         const row = [];
         for (let j = 0; j < cols; j++) {
-            const value = parseFloat(document.getElementById(`matrix${matrixId}-${i}-${j}`).value);
-            row.push(isNaN(value) ? 0 : value);
+            const input = document.querySelector(`#matrix${matrixId} input[data-row="${i}"][data-col="${j}"]`);
+            // Pastikan nilai adalah bilangan bulat
+            row.push(parseInt(input.value) || 0); 
         }
         matrix.push(row);
     }
@@ -102,389 +256,308 @@ function getMatrixValues(matrixId, rows, cols) {
     return matrix;
 }
 
-// Fungsi untuk mengisi matriks dengan nilai acak
-function randomizeMatrix(matrixId) {
-    const rows = parseInt(document.getElementById(`matrix${matrixId}-rows`).value);
-    const cols = parseInt(document.getElementById(`matrix${matrixId}-cols`).value);
+// Jalankan perhitungan berdasarkan operasi yang dipilih
+function performCalculation() {
+    const matrixA = getMatrixValues('A');
+    let result;
     
-    for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            // Nilai random antara -10 dan 10
-            const randomValue = Math.floor(Math.random() * 21) - 10;
-            document.getElementById(`matrix${matrixId}-${i}-${j}`).value = randomValue;
+    try {
+        switch (currentOperation) {
+            case 'add':
+                const matrixB_add = getMatrixValues('B');
+                result = addMatrices(matrixA, matrixB_add);
+                break;
+                
+            case 'subtract':
+                const matrixB_sub = getMatrixValues('B');
+                result = subtractMatrices(matrixA, matrixB_sub);
+                break;
+                
+            case 'multiply':
+                const matrixB_mul = getMatrixValues('B');
+                result = multiplyMatrices(matrixA, matrixB_mul);
+                break;
+                
+            case 'transpose':
+                result = transposeMatrix(matrixA);
+                break;
+                
+            case 'determinant':
+                result = calculateDeterminant(matrixA);
+                break;
+                
+            case 'inverse':
+                result = inverseMatrix(matrixA);
+                break;
         }
+        
+        displayResult(result);
+        
+    } catch (error) {
+        showNotification(`Error: ${error.message}`);
+        console.error(error);
     }
-    
-    updateOperationButtonsState();
 }
 
-// Fungsi untuk mengosongkan matriks (isi dengan 0)
-function clearMatrix(matrixId) {
-    const rows = parseInt(document.getElementById(`matrix${matrixId}-rows`).value);
-    const cols = parseInt(document.getElementById(`matrix${matrixId}-cols`).value);
+// Tampilkan hasil perhitungan
+function displayResult(result) {
+    const resultContainer = document.getElementById('matrixResult');
+    const resultText = document.getElementById('resultText');
     
-    for (let i = 0; i < rows; i++) {
-        for (let j = 0; j < cols; j++) {
-            document.getElementById(`matrix${matrixId}-${i}-${j}`).value = '0';
-        }
-    }
-    
-    updateOperationButtonsState();
-}
-
-// Fungsi untuk menampilkan hasil
-function displayResult(result, operationType, steps = '') {
-    document.getElementById('result-container').style.display = 'block';
-    document.getElementById('result-operation-type').textContent = `Operasi: ${operationType}`;
-    
-    const resultDisplay = document.getElementById('result-display');
-    resultDisplay.innerHTML = '';
-    
-    if (Array.isArray(result) && Array.isArray(result[0])) {
-        // Hasil berupa matriks
-        const table = document.createElement('table');
-        table.className = 'matrix-table';
+    if (typeof result === 'number') {
+        // Jika hasil berupa angka (determinan)
+        resultContainer.innerHTML = `<div class="result-number">${Math.round(result)}</div>`;
+        resultText.textContent = `Nilai determinan: ${Math.round(result)}`;
+    } else {
+        // Jika hasil berupa matriks
+        resultContainer.innerHTML = '';
         
         for (let i = 0; i < result.length; i++) {
-            const tr = document.createElement('tr');
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'matrix-row';
             
             for (let j = 0; j < result[i].length; j++) {
-                const td = document.createElement('td');
-                const input = document.createElement('input');
-                input.type = 'number';
-                input.value = parseFloat(result[i][j].toFixed(4));
-                input.readOnly = true;
+                const cellDiv = document.createElement('div');
+                cellDiv.className = 'matrix-cell';
                 
-                td.appendChild(input);
-                tr.appendChild(td);
+                const value = document.createElement('span');
+                value.textContent = Math.round(result[i][j]); // Pembulatan ke bilangan bulat
+                
+                cellDiv.appendChild(value);
+                rowDiv.appendChild(cellDiv);
             }
             
-            table.appendChild(tr);
+            resultContainer.appendChild(rowDiv);
         }
         
-        const resultMatrixDiv = document.createElement('div');
-        resultMatrixDiv.className = 'result-matrix';
-        resultMatrixDiv.appendChild(table);
-        resultDisplay.appendChild(resultMatrixDiv);
-    } else {
-        // Hasil berupa nilai skalar
-        const resultValue = document.createElement('div');
-        resultValue.className = 'result-value';
-        resultValue.textContent = parseFloat(result.toFixed(4));
-        resultDisplay.appendChild(resultValue);
-    }
-    
-    // Tampilkan langkah penyelesaian jika ada
-    if (steps) {
-        document.getElementById('steps-container').style.display = 'block';
-        document.getElementById('steps').textContent = steps;
-    } else {
-        document.getElementById('steps-container').style.display = 'none';
+        if (currentOperation === 'inverse') {
+            resultText.textContent = 'Matriks Invers';
+        } else {
+            resultText.textContent = 'Hasil Operasi';
+        }
     }
 }
 
-// Fungsi untuk memperbarui status tombol operasi
-function updateOperationButtonsState() {
-    const rowsA = parseInt(document.getElementById('matrixA-rows').value);
-    const colsA = parseInt(document.getElementById('matrixA-cols').value);
-    const rowsB = parseInt(document.getElementById('matrixB-rows').value);
-    const colsB = parseInt(document.getElementById('matrixB-cols').value);
-    
-    // Validasi operasi penjumlahan dan pengurangan
-    const canAddSubtract = rowsA === rowsB && colsA === colsB;
-    document.getElementById('add').disabled = !canAddSubtract;
-    document.getElementById('subtract').disabled = !canAddSubtract;
-    
-    // Validasi operasi perkalian
-    const canMultiply = colsA === rowsB;
-    document.getElementById('multiply').disabled = !canMultiply;
-    
-    // Validasi determinan dan invers (hanya untuk matriks persegi)
-    const isASquare = rowsA === colsA;
-    const isBSquare = rowsB === colsB;
-    document.getElementById('determinant-A').disabled = !isASquare;
-    document.getElementById('determinant-B').disabled = !isBSquare;
-    document.getElementById('inverse-A').disabled = !isASquare;
-    document.getElementById('inverse-B').disabled = !isBSquare;
-}
+// FUNGSI MATEMATIS
 
-// Operasi penjumlahan matriks
-function addMatrices() {
-    const rowsA = parseInt(document.getElementById('matrixA-rows').value);
-    const colsA = parseInt(document.getElementById('matrixA-cols').value);
-    const matrixA = getMatrixValues('A', rowsA, colsA);
-    const matrixB = getMatrixValues('B', rowsA, colsA);
+// Penjumlahan matriks
+function addMatrices(matrixA, matrixB) {
+    validateSameDimensions(matrixA, matrixB);
     
     const result = [];
-    let steps = "Langkah-langkah penjumlahan matriks:\n\n";
-    steps += "Untuk menjumlahkan dua matriks, kita tambahkan elemen yang bersesuaian:\n\n";
     
-    for (let i = 0; i < rowsA; i++) {
+    for (let i = 0; i < matrixA.length; i++) {
         const row = [];
-        for (let j = 0; j < colsA; j++) {
-            const sum = matrixA[i][j] + matrixB[i][j];
-            row.push(sum);
-            steps += `C[${i+1}][${j+1}] = A[${i+1}][${j+1}] + B[${i+1}][${j+1}] = ${matrixA[i][j]} + ${matrixB[i][j]} = ${sum}\n`;
+        for (let j = 0; j < matrixA[0].length; j++) {
+            row.push(matrixA[i][j] + matrixB[i][j]);
         }
         result.push(row);
     }
     
-    displayResult(result, 'A + B', steps);
+    return result;
 }
 
-// Operasi pengurangan matriks
-function subtractMatrices() {
-    const rowsA = parseInt(document.getElementById('matrixA-rows').value);
-    const colsA = parseInt(document.getElementById('matrixA-cols').value);
-    const matrixA = getMatrixValues('A', rowsA, colsA);
-    const matrixB = getMatrixValues('B', rowsA, colsA);
+// Pengurangan matriks
+function subtractMatrices(matrixA, matrixB) {
+    validateSameDimensions(matrixA, matrixB);
     
     const result = [];
-    let steps = "Langkah-langkah pengurangan matriks:\n\n";
-    steps += "Untuk mengurangkan dua matriks, kita kurangkan elemen yang bersesuaian:\n\n";
     
-    for (let i = 0; i < rowsA; i++) {
+    for (let i = 0; i < matrixA.length; i++) {
         const row = [];
-        for (let j = 0; j < colsA; j++) {
-            const diff = matrixA[i][j] - matrixB[i][j];
-            row.push(diff);
-            steps += `C[${i+1}][${j+1}] = A[${i+1}][${j+1}] - B[${i+1}][${j+1}] = ${matrixA[i][j]} - ${matrixB[i][j]} = ${diff}\n`;
+        for (let j = 0; j < matrixA[0].length; j++) {
+            row.push(matrixA[i][j] - matrixB[i][j]);
         }
         result.push(row);
     }
     
-    displayResult(result, 'A - B', steps);
+    return result;
 }
 
-// Operasi perkalian matriks
-function multiplyMatrices() {
-    const rowsA = parseInt(document.getElementById('matrixA-rows').value);
-    const colsA = parseInt(document.getElementById('matrixA-cols').value);
-    const colsB = parseInt(document.getElementById('matrixB-cols').value);
-    const matrixA = getMatrixValues('A', rowsA, colsA);
-    const matrixB = getMatrixValues('B', colsA, colsB);
+// Perkalian matriks
+function multiplyMatrices(matrixA, matrixB) {
+    validateMultiplicationDimensions(matrixA, matrixB);
     
     const result = [];
-    let steps = "Langkah-langkah perkalian matriks:\n\n";
-    steps += "Untuk perkalian matriks A × B, setiap elemen dari hasil perkalian adalah jumlah dari hasil perkalian baris dari A dengan kolom dari B yang bersesuaian:\n\n";
+    
+    const rowsA = matrixA.length;
+    const colsB = matrixB[0].length;
+    const common = matrixB.length; // Sama dengan jumlah kolom di A
     
     for (let i = 0; i < rowsA; i++) {
         const row = [];
         for (let j = 0; j < colsB; j++) {
             let sum = 0;
-            let stepDetails = `C[${i+1}][${j+1}] = `;
             
-            for (let k = 0; k < colsA; k++) {
+            for (let k = 0; k < common; k++) {
                 sum += matrixA[i][k] * matrixB[k][j];
-                stepDetails += `${k > 0 ? ' + ' : ''}(A[${i+1}][${k+1}] × B[${k+1}][${j+1}]) = ${k > 0 ? ' + ' : ''}(${matrixA[i][k]} × ${matrixB[k][j]})`;
             }
             
-            stepDetails += ` = ${sum}\n`;
-            steps += stepDetails;
             row.push(sum);
         }
         result.push(row);
     }
     
-    displayResult(result, 'A × B', steps);
+    return result;
 }
 
-// Operasi transpose matriks
-function transposeMatrix(matrixId) {
-    const rows = parseInt(document.getElementById(`matrix${matrixId}-rows`).value);
-    const cols = parseInt(document.getElementById(`matrix${matrixId}-cols`).value);
-    const matrix = getMatrixValues(matrixId, rows, cols);
-    
+// Transpose matriks
+function transposeMatrix(matrix) {
     const result = [];
-    let steps = `Langkah-langkah transpose matriks ${matrixId}:\n\n`;
-    steps += "Untuk mentranspose sebuah matriks, kita menukar baris dan kolom:\n\n";
     
-    for (let j = 0; j < cols; j++) {
+    for (let j = 0; j < matrix[0].length; j++) {
         const row = [];
-        for (let i = 0; i < rows; i++) {
+        for (let i = 0; i < matrix.length; i++) {
             row.push(matrix[i][j]);
-            steps += `Transpose[${j+1}][${i+1}] = ${matrixId}[${i+1}][${j+1}] = ${matrix[i][j]}\n`;
         }
         result.push(row);
     }
     
-    displayResult(result, `Transpose ${matrixId}`, steps);
+    return result;
 }
 
-// Fungsi untuk menghitung determinan
-function calculateDeterminant(matrixId) {
-    const size = parseInt(document.getElementById(`matrix${matrixId}-rows`).value);
-    const matrix = getMatrixValues(matrixId, size, size);
+// Hitung determinan matriks
+function calculateDeterminant(matrix) {
+    validateSquareMatrix(matrix);
     
-    let steps = `Langkah-langkah perhitungan determinan matriks ${matrixId}:\n\n`;
-    const { determinant, detailSteps } = determinantWithSteps(matrix, steps);
-    
-    displayResult(determinant, `Determinan ${matrixId}`, detailSteps);
-}
-
-// Fungsi untuk menghitung determinan dengan langkah-langkah
-function determinantWithSteps(matrix, steps = '') {
     const n = matrix.length;
     
-    // Kasus dasar: matriks 1x1
+    // Kasus khusus untuk matriks 1x1
     if (n === 1) {
-        steps += `Determinan matriks 1×1 = ${matrix[0][0]}\n`;
-        return { determinant: matrix[0][0], detailSteps: steps };
+        return matrix[0][0];
     }
     
-    // Kasus dasar: matriks 2x2
+    // Kasus khusus untuk matriks 2x2
     if (n === 2) {
-        const det = matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
-        steps += `Determinan matriks 2×2 = (${matrix[0][0]} × ${matrix[1][1]}) - (${matrix[0][1]} × ${matrix[1][0]}) = ${det}\n`;
-        return { determinant: det, detailSteps: steps };
+        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
     }
     
-    // Ekspansi Kofaktor untuk matriks yang lebih besar
-    steps += "Menggunakan ekspansi kofaktor untuk matriks yang lebih besar:\n\n";
+    // Untuk matriks 3x3 ke atas, gunakan ekspansi kofaktor
     let det = 0;
     
     for (let j = 0; j < n; j++) {
-        // Buat submatriks tanpa baris pertama dan kolom j
-        const subMatrix = [];
-        for (let i = 1; i < n; i++) {
-            const row = [];
-            for (let k = 0; k < n; k++) {
-                if (k !== j) {
-                    row.push(matrix[i][k]);
-                }
-            }
-            if (row.length > 0) {
-                subMatrix.push(row);
-            }
-        }
-        
-        steps += `Submatrik dengan menghilangkan baris 1 dan kolom ${j+1}:\n`;
-        subMatrix.forEach((row, rowIdx) => {
-            steps += `[ ${row.join(' ')} ]\n`;
-        });
-        
-        // Hitung determinan submatriks
-        const { determinant: subDet } = determinantWithSteps(subMatrix);
-        const cofactor = Math.pow(-1, j) * subDet;
-        const term = matrix[0][j] * cofactor;
-        
-        steps += `Kofaktor: (-1)^(1+${j+1}) × det(submatriks) = ${cofactor}\n`;
-        steps += `Term ke-${j+1}: ${matrix[0][j]} × ${cofactor} = ${term}\n\n`;
-        
-        det += term;
+        const minor = getMinor(matrix, 0, j);
+        const cofactor = Math.pow(-1, j) * calculateDeterminantValue(minor);
+        det += matrix[0][j] * cofactor;
     }
     
-    steps += `Determinan = ${det}\n`;
-    return { determinant: det, detailSteps: steps };
+    return det;
 }
 
-// Fungsi untuk menghitung invers matriks
-function calculateInverse(matrixId) {
-    const size = parseInt(document.getElementById(`matrix${matrixId}-rows`).value);
-    const matrix = getMatrixValues(matrixId, size, size);
+// Mendapatkan minor (submatriks) dari matriks
+function getMinor(matrix, row, col) {
+    const minor = [];
+    const n = matrix.length;
     
-    let steps = `Langkah-langkah perhitungan invers matriks ${matrixId}:\n\n`;
-    
-    // Langkah 1: Hitung determinan
-    const { determinant, detailSteps } = determinantWithSteps(matrix);
-    steps += "Langkah 1: Menghitung determinan matriks\n";
-    steps += detailSteps;
-    
-    // Jika determinan = 0, matriks tidak memiliki invers
-    if (Math.abs(determinant) < 1e-10) {
-        steps += "\nDeterminan matriks = 0 atau mendekati 0, sehingga matriks tidak memiliki invers.";
-        displayResult("Tidak memiliki invers (determinan = 0)", `Invers ${matrixId}`, steps);
-        return;
+    for (let i = 0; i < n; i++) {
+        if (i === row) continue;
+        
+        const newRow = [];
+        for (let j = 0; j < n; j++) {
+            if (j === col) continue;
+            newRow.push(matrix[i][j]);
+        }
+        
+        minor.push(newRow);
     }
     
-    // Langkah 2: Menghitung matriks kofaktor
-    steps += "\nLangkah 2: Menghitung matriks kofaktor\n\n";
-    const cofactorMatrix = [];
+    return minor;
+}
+
+// Hitung nilai determinan (tanpa langkah)
+function calculateDeterminantValue(matrix) {
+    const n = matrix.length;
     
-    for (let i = 0; i < size; i++) {
+    if (n === 1) {
+        return matrix[0][0];
+    }
+    
+    if (n === 2) {
+        return matrix[0][0] * matrix[1][1] - matrix[0][1] * matrix[1][0];
+    }
+    
+    let det = 0;
+    for (let j = 0; j < n; j++) {
+        const minor = getMinor(matrix, 0, j);
+        const cofactor = Math.pow(-1, j) * calculateDeterminantValue(minor);
+        det += matrix[0][j] * cofactor;
+    }
+    
+    return det;
+}
+
+// Hitung invers matriks
+function inverseMatrix(matrix) {
+    validateSquareMatrix(matrix);
+    
+    const n = matrix.length;
+    const det = calculateDeterminantValue(matrix);
+    
+    if (Math.abs(det) < 1e-10) {
+        throw new Error('Matriks ini tidak memiliki invers karena determinannya nol');
+    }
+    
+    // Untuk matriks 1x1, inversnya langsung 1/nilai
+    if (n === 1) {
+        return [[1 / matrix[0][0]]];
+    }
+    
+    // Untuk matriks 2x2 dan lebih besar, gunakan metode adjoin
+    
+    // Hitung matriks kofaktor
+    const cofactors = [];
+    for (let i = 0; i < n; i++) {
         const cofactorRow = [];
-        for (let j = 0; j < size; j++) {
-            // Buat submatriks dengan menghilangkan baris i dan kolom j
-            const subMatrix = [];
-            for (let r = 0; r < size; r++) {
-                if (r !== i) {
-                    const row = [];
-                    for (let c = 0; c < size; c++) {
-                        if (c !== j) {
-                            row.push(matrix[r][c]);
-                        }
-                    }
-                    subMatrix.push(row);
-                }
-            }
-            
-            // Hitung minor
-            const { determinant: minor } = determinantWithSteps(subMatrix);
-            
-            // Hitung kofaktor
-            const cofactor = Math.pow(-1, i + j) * minor;
+        for (let j = 0; j < n; j++) {
+            const minor = getMinor(matrix, i, j);
+            const cofactor = Math.pow(-1, i + j) * calculateDeterminantValue(minor);
             cofactorRow.push(cofactor);
-            
-            steps += `Kofaktor[${i+1}][${j+1}] = (-1)^(${i+1}+${j+1}) × det(submatriks) = ${cofactor}\n`;
         }
-        cofactorMatrix.push(cofactorRow);
+        cofactors.push(cofactorRow);
     }
     
-    // Langkah 3: Transpose matriks kofaktor
-    steps += "\nLangkah 3: Transpose matriks kofaktor\n\n";
-    const adjointMatrix = [];
-    
-    for (let j = 0; j < size; j++) {
-        const adjointRow = [];
-        for (let i = 0; i < size; i++) {
-            adjointRow.push(cofactorMatrix[i][j]);
-            steps += `Adjoint[${j+1}][${i+1}] = Kofaktor[${i+1}][${j+1}] = ${cofactorMatrix[i][j]}\n`;
-        }
-        adjointMatrix.push(adjointRow);
-    }
-    
-    // Langkah 4: Bagi dengan determinan
-    steps += "\nLangkah 4: Bagi setiap elemen matriks adjoint dengan determinan\n\n";
-    const inverseMatrix = [];
-    
-    for (let i = 0; i < size; i++) {
-        const inverseRow = [];
-        for (let j = 0; j < size; j++) {
-            const inverseElement = adjointMatrix[i][j] / determinant;
-            inverseRow.push(inverseElement);
-            steps += `Invers[${i+1}][${j+1}] = Adjoint[${i+1}][${j+1}] / determinan = ${adjointMatrix[i][j]} / ${determinant} = ${inverseElement}\n`;
-        }
-        inverseMatrix.push(inverseRow);
-    }
-    
-    displayResult(inverseMatrix, `Invers ${matrixId}`, steps);
-}
-
-// Fungsi untuk perkalian skalar
-function scalarMultiply(matrixId) {
-    const rows = parseInt(document.getElementById(`matrix${matrixId}-rows`).value);
-    const cols = parseInt(document.getElementById(`matrix${matrixId}-cols`).value);
-    const matrix = getMatrixValues(matrixId, rows, cols);
-    const scalar = parseFloat(document.getElementById('scalar-value').value);
-    
-    if (isNaN(scalar)) {
-        alert('Masukkan nilai skalar yang valid');
-        return;
-    }
-    
-    const result = [];
-    let steps = `Langkah-langkah perkalian skalar dengan matriks ${matrixId}:\n\n`;
-    steps += `Untuk mengalikan matriks dengan skalar ${scalar}, kita kalikan setiap elemen dengan nilai skalar:\n\n`;
-    
-    for (let i = 0; i < rows; i++) {
+    // Transpose matriks kofaktor untuk mendapatkan adjoin
+    const adjoin = [];
+    for (let j = 0; j < n; j++) {
         const row = [];
-        for (let j = 0; j < cols; j++) {
-            const product = scalar * matrix[i][j];
-            row.push(product);
-            steps += `Hasil[${i+1}][${j+1}] = ${scalar} × ${matrixId}[${i+1}][${j+1}] = ${scalar} × ${matrix[i][j]} = ${product}\n`;
+        for (let i = 0; i < n; i++) {
+            row.push(cofactors[i][j]);
+        }
+        adjoin.push(row);
+    }
+    
+    // Bagi adjoin dengan determinan untuk mendapatkan invers
+    const result = [];
+    for (let i = 0; i < n; i++) {
+        const row = [];
+        for (let j = 0; j < n; j++) {
+            row.push(adjoin[i][j] / det);
         }
         result.push(row);
     }
     
-    displayResult(result, `${scalar} × ${matrixId}`, steps);
+    return result;
+}
+
+// FUNGSI VALIDASI
+
+// Validasi bahwa dua matriks memiliki dimensi yang sama
+function validateSameDimensions(matrixA, matrixB) {
+    if (matrixA.length !== matrixB.length || matrixA[0].length !== matrixB[0].length) {
+        throw new Error('Dimensi kedua matriks harus sama untuk operasi penjumlahan/pengurangan');
+    }
+}
+
+// Validasi bahwa dimensi valid untuk perkalian matriks
+function validateMultiplicationDimensions(matrixA, matrixB) {
+    if (matrixA[0].length !== matrixB.length) {
+        throw new Error('Jumlah kolom matriks A harus sama dengan jumlah baris matriks B untuk perkalian');
+    }
+}
+
+// Validasi bahwa matriks adalah matriks persegi
+function validateSquareMatrix(matrix) {
+    if (matrix.length !== matrix[0].length) {
+        throw new Error('Matriks harus persegi (jumlah baris = jumlah kolom)');
+    }
 }
