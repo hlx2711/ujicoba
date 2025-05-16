@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Kalkulator Matriks</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>Kalkulator Matriks</h1>
+            <p class="subtitle">Alat perhitungan matriks dengan visualisasi langkah pengerjaan</p>
+        </header>
+
+        <div class="card">
+            <div class="dimension-controls">
+                <div class="dimension-control">
+                    <h3>Matriks A</h3>
+                    <div class="dimension-inputs">
+                        <div class="dimension-label">
+                            <label for="matrixA-rows">Baris:</label>
+                            <input type="number" id="matrixA-rows" min="1" max="10" value="3" inputmode="numeric" pattern="[0-9]*">
+                        </div>
+                        <div class="dimension-label">
+                            <label for="matrixA-cols">Kolom:</label>
+                            <input type="number" id="matrixA-cols" min="1" max="10" value="3" inputmode="numeric" pattern="[0-9]*">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="dimension-control">
+                    <h3>Matriks B</h3>
+                    <div class="dimension-inputs">
+                        <div class="dimension-label">
+                            <label for="matrixB-rows">Baris:</label>
+                            <input type="number" id="matrixB-rows" min="1" max="10" value="3" inputmode="numeric" pattern="[0-9]*">
+                        </div>
+                        <div class="dimension-label">
+                            <label for="matrixB-cols">Kolom:</label>
+                            <input type="number" id="matrixB-cols" min="1" max="10" value="3" inputmode="numeric" pattern="[0-9]*">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="btn-container">
+                    <button id="create-matrices" class="btn-primary">Buat Matriks</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="matrices-container">
+                <div class="matrix-container" id="matrixA-container">
+                    <div class="matrix-header">
+                        <h3 class="matrix-title">Matriks A</h3>
+                        <div class="matrix-tools">
+                            <button id="randomize-A" class="btn-secondary">Acak</button>
+                            <button id="clear-A" class="btn-secondary">Kosongkan</button>
+                        </div>
+                    </div>
+                    <div class="matrix-overflow-wrapper">
+                        <div id="matrixA" class="matrix-wrapper"></div>
+                    </div>
+                </div>
+                
+                <div class="matrix-container" id="matrixB-container">
+                    <div class="matrix-header">
+                        <h3 class="matrix-title">Matriks B</h3>
+                        <div class="matrix-tools">
+                            <button id="randomize-B" class="btn-secondary">Acak</button>
+                            <button id="clear-B" class="btn-secondary">Kosongkan</button>
+                        </div>
+                    </div>
+                    <div class="matrix-overflow-wrapper">
+                        <div id="matrixB" class="matrix-wrapper"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card operations">
+            <h3>Operasi Matriks</h3>
+            <div class="operations-grid">
+                <button id="add" class="operation-btn">A + B</button>
+                <button id="subtract" class="operation-btn">A - B</button>
+                <button id="multiply" class="operation-btn">A × B</button>
+                <button id="transpose-A" class="operation-btn">Transpose A</button>
+                <button id="transpose-B" class="operation-btn">Transpose B</button>
+                <button id="determinant-A" class="operation-btn">Determinan A</button>
+                <button id="determinant-B" class="operation-btn">Determinan B</button>
+                <button id="inverse-A" class="operation-btn">Invers A</button>
+                <button id="inverse-B" class="operation-btn">Invers B</button>
+            </div>
+            
+            <div class="scalar-operations">
+                <h3>Operasi Skalar</h3>
+                <div class="scalar-input">
+                    <div class="scalar-input-field">
+                        <label for="scalar-value">Nilai Skalar:</label>
+                        <input type="number" id="scalar-value" value="2" inputmode="numeric">
+                    </div>
+                    <div class="scalar-buttons">
+                        <button id="scalar-multiply-A" class="btn-primary">Kalikan dengan A</button>
+                        <button id="scalar-multiply-B" class="btn-primary">Kalikan dengan B</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card" id="result-container" style="display: none;">
+            <div class="result-header">
+                <h3>Hasil</h3>
+                <div class="result-type" id="result-operation-type">Operasi: </div>
+            </div>
+            <div class="loading">
+                <div class="spinner"></div>
+                <p>Menghitung...</p>
+            </div>
+            <div class="result-overflow-wrapper">
+                <div id="result-display"></div>
+            </div>
+        </div>
+
+        <div class="card" id="steps-container" style="display: none;">
+            <div class="step-header">
+                <h3 class="step-title">Langkah-langkah Penyelesaian</h3>
+            </div>
+            <div id="steps" class="steps"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // Script untuk highlight langkah penyelesaian
+        document.addEventListener('DOMContentLoaded', function() {
+            const originalDisplayResult = displayResult;
+            
+            // Override displayResult untuk menambahkan highlight pada langkah-langkah
+            window.displayResult = function(result, operationType, steps = '') {
+                originalDisplayResult(result, operationType, steps);
+                
+                if (steps) {
+                    // Highlight angka dan operasi di dalam langkah-langkah
+                    const stepsElement = document.getElementById('steps');
+                    let formattedSteps = steps;
+                    
+                    // Highlight angka dalam kurung siku [x][y]
+                    formattedSteps = formattedSteps.replace(/\[\d+\]\[\d+\]/g, match => 
+                        `<span class="highlight">${match}</span>`);
+                    
+                    // Highlight operasi matematika
+                    formattedSteps = formattedSteps.replace(/(\+|\-|\×|\=)/g, match => 
+                        `<span class="highlight">${match}</span>`);
+                    
+                    stepsElement.innerHTML = formattedSteps;
+                }
+            };
+            
+            // Tambahkan animasi loading 
+            const operationButtons = document.querySelectorAll('.operation-btn, #scalar-multiply-A, #scalar-multiply-B');
+            const loadingElement = document.querySelector('.loading');
+            
+            operationButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    if (this.disabled) return;
+                    
+                    const resultContainer = document.getElementById('result-container');
+                    if (resultContainer.style.display === 'none') {
+                        resultContainer.style.display = 'block';
+                        document.getElementById('result-display').style.display = 'none';
+                        loadingElement.style.display = 'flex';
+                        
+                        // Simulasi loading 
+                        setTimeout(() => {
+                            loadingElement.style.display = 'none';
+                            document.getElementById('result-display').style.display = 'block';
+                        }, 500);
+                    }
+                });
+            });
+            
+            // Override createMatrixTable untuk menambahkan atribut inputmode
+            const originalCreateMatrixTable = window.createMatrixTable;
+            window.createMatrixTable = function(matrixId, rows, cols) {
+                originalCreateMatrixTable(matrixId, rows, cols);
+                
+                // Tambahkan atribut inputmode="numeric" pada semua input matriks
+                const inputs = document.querySelectorAll(`#matrix${matrixId} input[type="number"]`);
+                inputs.forEach(input => {
+                    input.setAttribute('inputmode', 'numeric');
+                    input.setAttribute('pattern', '[0-9]*');
+                });
+            };
+            
+            // Deteksi perangkat mobile untuk penyesuaian UI
+            function isMobileDevice() {
+                return (window.innerWidth <= 767);
+            }
+            
+            // Pastikan tabel matrix dapat di-scroll horizontal jika terlalu lebar
+            function adjustMatrixContainers() {
+                const isOnMobile = isMobileDevice();
+                const matrices = document.querySelectorAll('.matrix-wrapper');
+                matrices.forEach(matrix => {
+                    if (isOnMobile) {
+                        matrix.parentElement.style.overflowX = 'auto';
+                    }
+                });
+            }
+            
+            // Panggil penyesuaian saat halaman dimuat dan saat ukuran layar berubah
+            adjustMatrixContainers();
+            window.addEventListener('resize', adjustMatrixContainers);
+        });
+    </script>
+</body>
+</html>
